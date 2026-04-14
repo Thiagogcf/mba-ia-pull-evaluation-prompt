@@ -20,12 +20,79 @@ load_dotenv()
 
 
 def pull_prompts_from_langsmith():
-    ...
+    """
+    Faz pull do prompt do LangSmith Hub e retorna os dados extraídos.
+
+    Returns:
+        dict com os dados do prompt ou None se erro
+    """
+    prompt_name = "leonanluppi/bug_to_user_story_v1"
+
+    print(f"Fazendo pull do prompt: {prompt_name}")
+
+    try:
+        prompt = hub.pull(prompt_name)
+        print(f"   ✓ Prompt carregado com sucesso do Hub")
+
+        system_prompt = ""
+        user_prompt = ""
+
+        if hasattr(prompt, "messages"):
+            for msg in prompt.messages:
+                if msg.__class__.__name__ in ("SystemMessagePromptTemplate", "SystemMessage"):
+                    template = msg.prompt.template if hasattr(msg, "prompt") else str(msg.content)
+                    system_prompt = template
+                elif msg.__class__.__name__ in ("HumanMessagePromptTemplate", "HumanMessage"):
+                    template = msg.prompt.template if hasattr(msg, "prompt") else str(msg.content)
+                    user_prompt = template
+
+        if not system_prompt and not user_prompt:
+            if hasattr(prompt, "template"):
+                system_prompt = prompt.template
+                user_prompt = "{bug_report}"
+
+        prompt_data = {
+            "bug_to_user_story_v1": {
+                "description": "Prompt para converter relatos de bugs em User Stories",
+                "system_prompt": system_prompt,
+                "user_prompt": user_prompt,
+                "version": "v1",
+                "created_at": "2025-01-15",
+                "tags": ["bug-analysis", "user-story", "product-management"],
+            }
+        }
+
+        return prompt_data
+
+    except Exception as e:
+        print(f"   ❌ Erro ao fazer pull: {e}")
+        return None
 
 
 def main():
     """Função principal"""
-    ...
+    print_section_header("PULL DE PROMPTS DO LANGSMITH HUB")
+
+    required_vars = ["LANGSMITH_API_KEY"]
+    if not check_env_vars(required_vars):
+        return 1
+
+    prompt_data = pull_prompts_from_langsmith()
+
+    if prompt_data is None:
+        print("\n❌ Falha ao fazer pull dos prompts")
+        return 1
+
+    output_path = "prompts/bug_to_user_story_v1.yml"
+    if save_yaml(prompt_data, output_path):
+        print(f"\n   ✓ Prompt salvo em: {output_path}")
+        print("\nPróximos passos:")
+        print("1. Analise o prompt em prompts/bug_to_user_story_v1.yml")
+        print("2. Crie sua versão otimizada em prompts/bug_to_user_story_v2.yml")
+        return 0
+    else:
+        print(f"\n❌ Erro ao salvar prompt em: {output_path}")
+        return 1
 
 
 if __name__ == "__main__":
